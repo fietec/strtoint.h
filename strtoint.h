@@ -8,15 +8,30 @@
 #include <ctype.h>
 #include <errno.h>
 
+struct strtoint_res_t {
+    char *endptr;
+    bool negative;
+    bool invalid_base;
+    bool out_of_range;
+};
+
 int8_t  strtoint8 (const char *str, char **endptr, int base);
 int16_t strtoint16(const char *str, char **endptr, int base);
 int32_t strtoint32(const char *str, char **endptr, int base);
 int64_t strtoint64(const char *str, char **endptr, int base);
+int8_t  strtoint8_s (const char *str, struct strtoint_res_t *res, int base);
+int16_t strtoint16_s(const char *str, struct strtoint_res_t *res, int base);
+int32_t strtoint32_s(const char *str, struct strtoint_res_t *res, int base);
+int64_t strtoint64_s(const char *str, struct strtoint_res_t *res, int base);
 
 uint8_t  strtouint8 (const char *str, char **endptr, int base);
 uint16_t strtouint16(const char *str, char **endptr, int base);
 uint32_t strtouint32(const char *str, char **endptr, int base);
 uint64_t strtouint64(const char *str, char **endptr, int base);
+uint8_t  strtouint8_s (const char *str, struct strtoint_res_t *res, int base);
+uint16_t strtouint16_s(const char *str, struct strtoint_res_t *res, int base);
+uint32_t strtouint32_s(const char *str, struct strtoint_res_t *res, int base);
+uint64_t strtouint64_s(const char *str, struct strtoint_res_t *res, int base);
 
 #endif // STRTOINT_H
 
@@ -46,53 +61,14 @@ static inline bool strtoint__str_starts_with_case(const char *s1, const char *s2
     return true;
 }
 
-int8_t strtoint8(const char *str, char **endptr, int base)
+int64_t strtoint__parse_s(const char *str, struct strtoint_res_t *res, int base, int64_t min, int64_t max)
 {
-    int64_t result = strtoint64(str, endptr, base);
-    if (result < INT8_MIN){
-        errno = ERANGE;
-        return INT8_MIN;
-    }
-    if (result > INT8_MAX){
-        errno = ERANGE;
-        return INT8_MAX;
-    }
-    return (int8_t) result;
-}
-
-int16_t strtoint16(const char *str, char **endptr, int base)
-{
-    int64_t result = strtoint64(str, endptr, base);
-    if (result < INT16_MIN){
-        errno = ERANGE;
-        return INT16_MIN;
-    }
-    if (result > INT16_MAX){
-        errno = ERANGE;
-        return INT16_MAX;
-    }
-    return (int16_t) result;
-}
-
-int32_t strtoint32(const char *str, char **endptr, int base)
-{
-    int64_t result = strtoint64(str, endptr, base);
-    if (result < INT32_MIN){
-        errno = ERANGE;
-        return INT32_MIN;
-    }
-    if (result > INT32_MAX){
-        errno = ERANGE;
-        return INT32_MAX;
-    }
-    return (int32_t) result;
-}
-
-int64_t strtoint64(const char *str, char **endptr, int base)
-{
+    if (res) *res = (struct strtoint_res_t){0};
     if (base < 0 || base == 1 || base > 36){
-        errno = EINVAL;
-        if (endptr) *endptr = (char*)str;
+        if (res){
+            res->invalid_base = true;
+            res->endptr = (char*)str;
+        }
         return 0;
     }
     int64_t result = 0;
@@ -130,7 +106,7 @@ int64_t strtoint64(const char *str, char **endptr, int base)
     while (strtoint__digit_value(*end, base) != -1) end++;
 
     if (end == start){
-        if (endptr) *endptr = (char*) str;
+        if (res) res->endptr = (char*) str;
         return 0;
     }
 
@@ -142,57 +118,83 @@ int64_t strtoint64(const char *str, char **endptr, int base)
     }
 
     if (!negative){
-        if (result < -INT64_MAX) goto range_error;
+        if (max < 0 || result < -max) goto range_error;
         result = -result;
-    }
+    } else if (result < min) goto range_error;
 
-    if (endptr) *endptr = (char*)end;
+    if (res){
+        res->endptr = (char*)end;
+        res->negative = negative;
+    }
     return result;
 
 range_error:
-    errno = ERANGE;
-    if (endptr) *endptr = (char*)end;
-    return (negative ? INT64_MIN : INT64_MAX);
+    if (res){
+        res->out_of_range = true;
+        res->endptr = (char*) end;
+        res->negative = negative;
+    }
+    return (negative ? min : max);
 }
 
-uint8_t strtouint8(const char *str, char **endptr, int base)
+int64_t strtoint__parse(const char *str, char **endptr, int base, int64_t min, int64_t max)
 {
-    uint64_t value = strtouint64(str, endptr, base);
-    uint8_t result = (uint8_t) value;
-    if ((uint64_t) result != value){
-        errno = ERANGE;
-        return UINT8_MAX;
-    }
+    struct strtoint_res_t res;
+    int64_t result = strtoint__parse_s(str, &res, base, min, max);
+    if (res.invalid_base) errno = EINVAL;
+    if (res.out_of_range) errno = ERANGE;
+    if (endptr) *endptr = res.endptr;
     return result;
 }
 
-uint16_t strtouint16(const char *str, char **endptr, int base)
+int8_t strtoint8(const char *str, char **endptr, int base)
 {
-    uint64_t value = strtouint64(str, endptr, base);
-    uint16_t result = (uint16_t) value;
-    if ((uint64_t) result != value){
-        errno = ERANGE;
-        return UINT16_MAX;
-    }
-    return result;
+    return strtoint__parse(str, endptr, base, INT8_MIN, INT8_MAX);
 }
 
-uint32_t strtouint32(const char *str, char **endptr, int base)
+int8_t strtoint8_s(const char *str, struct strtoint_res_t *res, int base)
 {
-    uint64_t value = strtouint64(str, endptr, base);
-    uint32_t result = (uint32_t) value;
-    if ((uint64_t) result != value){
-        errno = ERANGE;
-        return UINT32_MAX;
-    }
-    return result;
+    return strtoint__parse_s(str, res, base, INT8_MIN, INT8_MAX);
 }
 
-uint64_t strtouint64(const char *str, char **endptr, int base)
+int16_t strtoint16(const char *str, char **endptr, int base)
 {
+    return strtoint__parse(str, endptr, base,INT16_MIN, INT16_MAX);
+}
+
+int16_t strtoint16_s(const char *str, struct strtoint_res_t *res, int base)
+{
+    return strtoint__parse_s(str, res, base, INT16_MIN, INT16_MAX);
+}
+
+int32_t strtoint32(const char *str, char **endptr, int base)
+{
+    return strtoint__parse(str, endptr, base, INT32_MIN, INT32_MAX);
+}
+
+int32_t strtoint32_s(const char *str, struct strtoint_res_t *res, int base)
+{
+    return strtoint__parse_s(str, res, base, INT32_MIN, INT32_MAX);
+}
+
+int64_t strtoint64(const char *str, char **endptr, int base)
+{
+    return strtoint__parse(str, endptr, base, INT64_MIN, INT64_MAX);
+}
+
+int64_t strtoint64_s(const char *str, struct strtoint_res_t *res, int base)
+{
+    return strtoint__parse_s(str, res, base, INT64_MIN, INT64_MAX);
+}
+
+uint64_t strtouint__parse_s(const char *str, struct strtoint_res_t *res, int base, uint64_t max)
+{
+    if (res) *res = (struct strtoint_res_t){0};
     if (base < 0 || base == 1 || base > 36){
-        errno = EINVAL;
-        if (endptr) *endptr = (char*)str;
+        if (res){
+            res->endptr = (char*) str;
+            res->invalid_base = true;
+        }
         return 0;
     }
     uint64_t result = 0;
@@ -230,7 +232,7 @@ uint64_t strtouint64(const char *str, char **endptr, int base)
     while (strtoint__digit_value(*end, base) != -1) end++;
 
     if (end == start){
-        if (endptr) *endptr = (char*) str;
+        if (res) res->endptr = (char*) str;
         return 0;
     }
 
@@ -242,15 +244,72 @@ uint64_t strtouint64(const char *str, char **endptr, int base)
     }
 
     if (negative) {
-        result = -result;
-    }
+        result = -result & max;
+    } else if (result > max) goto range_error;
 
-    if (endptr) *endptr = (char*)end;
+    if (res){
+        res->endptr = (char*)end;
+        res->negative = negative;
+    }
     return result;
 
 range_error:
-    errno = ERANGE;
-    if (endptr) *endptr = (char*)end;
-    return UINT64_MAX;
+    if (res){
+        res->endptr = (char*) end;
+        res->out_of_range = true;
+        res->negative = negative;
+    }
+    return max;
 }
+
+uint64_t strtouint__parse(const char *str, char **endptr, int base, uint64_t max)
+{
+    struct strtoint_res_t res;
+    uint64_t result = strtouint__parse_s(str, &res, base, max);
+    if (res.invalid_base) errno = EINVAL;
+    if (res.out_of_range) errno = ERANGE;
+    if (endptr) *endptr = res.endptr;
+    return result;
+}
+
+uint8_t strtouint8(const char *str, char **endptr, int base)
+{
+    return strtouint__parse(str, endptr, base, UINT8_MAX);
+}
+
+uint8_t strtouint8_s(const char *str, struct strtoint_res_t *res, int base)
+{
+    return strtouint__parse_s(str, res, base, UINT8_MAX);
+}
+
+uint16_t strtouint16(const char *str, char **endptr, int base)
+{
+    return strtouint__parse(str, endptr, base, UINT16_MAX);
+}
+
+uint16_t strtouint16_s(const char *str, struct strtoint_res_t *res, int base)
+{
+    return strtouint__parse_s(str, res, base, UINT16_MAX);
+}
+
+uint32_t strtouint32(const char *str, char **endptr, int base)
+{
+    return strtouint__parse(str, endptr, base, UINT32_MAX);
+}
+
+uint32_t strtouint32_s(const char *str, struct strtoint_res_t *res, int base)
+{
+    return strtouint__parse_s(str, res, base, UINT32_MAX);
+}
+
+uint64_t strtouint64(const char *str, char **endptr, int base)
+{
+    return strtouint__parse(str, endptr, base, UINT64_MAX);
+}
+
+uint64_t strtouint64_s(const char *str, struct strtoint_res_t *res, int base)
+{
+    return strtouint__parse_s(str, res, base, UINT64_MAX);
+}
+
 #endif // STRTOINT_IMPLEMENTATION
