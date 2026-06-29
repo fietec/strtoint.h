@@ -8,6 +8,10 @@
 #include <ctype.h>
 #include <errno.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct strtoint_res_t {
     char *endptr;
     bool negative;
@@ -32,6 +36,10 @@ uint8_t  strtouint8_s (const char *str, struct strtoint_res_t *res, int base);
 uint16_t strtouint16_s(const char *str, struct strtoint_res_t *res, int base);
 uint32_t strtouint32_s(const char *str, struct strtoint_res_t *res, int base);
 uint64_t strtouint64_s(const char *str, struct strtoint_res_t *res, int base);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // STRTOINT_H
 
