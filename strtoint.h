@@ -1,4 +1,4 @@
-/* strtoint.h - v1.1.0 - This library is in the public domain. */
+/* strtoint.h - v1.1.1 - This library is in the public domain. */
 
 #ifndef STRTOINT_H
 #define STRTOINT_H
@@ -260,9 +260,10 @@ uint64_t strtouint__parse_s(const char *str, struct strtoint_res_t *res, int bas
         result = result * base + digit;
     }
 
+    if (result > max) goto range_error;
     if (negative) {
-        result = -result & max;
-    } else if (result > max) goto range_error;
+        result = -result;
+    }
 
     if (res){
         res->endptr = (char*)end;
