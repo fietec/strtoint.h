@@ -1,4 +1,4 @@
-/* strtoint.h - v1.1.1 - This library is in the public domain. */
+/* strtoint.h - v1.2.0 - This library is in the public domain. */
 
 #ifndef STRTOINT_H
 #define STRTOINT_H
@@ -13,13 +13,14 @@ extern "C" {
 #endif
 
 struct strtoint_res_t {
-    char *endptr;       // pointer to the first unparsed character
-    bool negative;      // input had a leading '-' sign
+    char *endptr;        // pointer to the first unparsed character
+    bool negative;       // input had a leading '-' sign
+    bool leading_spaces; // input had leading whitespaces
 
-    // error flags (mutually exclusive)
-    bool invalid_base;  // supplied base was invalid
-    bool no_digits;     // no valid digits were found
-    bool out_of_range;  // value exceeded the representable range of target type
+    // error flags
+    bool invalid_base;   // supplied base was invalid
+    bool no_digits;      // no valid digits were found
+    bool out_of_range;   // value exceeded the representable range of target type
 };
 
 int8_t  strtoint8 (const char *str, char **endptr, int base);
@@ -86,6 +87,7 @@ int64_t strtoint__parse_s(const char *str, struct strtoint_res_t *res, int base,
     const char *start = str;
     while (isspace((unsigned char)*start)) start++;
 
+    bool leading_spaces = (start != str);
     bool negative = false;
     if (*start == '-'){
         negative = true;
@@ -139,6 +141,7 @@ int64_t strtoint__parse_s(const char *str, struct strtoint_res_t *res, int base,
     if (res){
         res->endptr = (char*)end;
         res->negative = negative;
+        res->leading_spaces = leading_spaces;
     }
     return result;
 
@@ -147,6 +150,7 @@ range_error:
         res->out_of_range = true;
         res->endptr = (char*) end;
         res->negative = negative;
+        res->leading_spaces = leading_spaces;
     }
     return (negative ? min : max);
 }
@@ -215,6 +219,7 @@ uint64_t strtouint__parse_s(const char *str, struct strtoint_res_t *res, int bas
     const char *start = str;
     while (isspace((unsigned char)*start)) start++;
 
+    bool leading_spaces = (start != str);
     bool negative = false;
     if (*start == '-'){
         negative = true;
@@ -268,6 +273,7 @@ uint64_t strtouint__parse_s(const char *str, struct strtoint_res_t *res, int bas
     if (res){
         res->endptr = (char*)end;
         res->negative = negative;
+        res->leading_spaces = leading_spaces;
     }
     return result;
 
@@ -276,6 +282,7 @@ range_error:
         res->endptr = (char*) end;
         res->out_of_range = true;
         res->negative = negative;
+        res->leading_spaces = leading_spaces;
     }
     return max;
 }
