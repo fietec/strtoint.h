@@ -1,4 +1,12 @@
-/* strtoint.h - v1.2.0 - This library is in the public domain. */
+/* strtoint.h - v1.2.0 - Public Domain
+ * A family of robust string-to-integer conversion functions for fixed-width types.
+ * Overview:
+ *   - Feature-wise, drop-in replacements for standard C `strtol` / `strtoul`.
+ *   - Adds support for binary numbers via the "0b" or "0B" prefix (when base is 0 or 2).
+ *   - Standardizes negative inputs for unsigned types across different platforms:
+ *     Inputs within bounds are wrapped modulo (UINTx_MAX + 1). If the input underflows
+ *     past -UINTx_MAX, the result saturates to UINTx_MAX and an error is reported.
+ */
 
 #ifndef STRTOINT_H
 #define STRTOINT_H
@@ -12,30 +20,49 @@
 extern "C" {
 #endif
 
+// Detailed result metadata for the structured (_s) variants.
 struct strtoint_res_t {
-    char *endptr;        // pointer to the first unparsed character
-    bool negative;       // input had a leading '-' sign
-    bool leading_spaces; // input had leading whitespaces
+    char *endptr;         // Pointer to the first unparsed character
+    bool negative;        // True if the input had a leading '-' sign
+    bool leading_spaces;  // True if the input had leading whitespaces
 
-    // error flags
-    bool invalid_base;   // supplied base was invalid
-    bool no_digits;      // no valid digits were found
-    bool out_of_range;   // value exceeded the representable range of target type
+    // Error Flags
+    bool invalid_base;    // The supplied base was invalid (not 0 or 2-36)
+    bool no_digits;       // No valid digits were found in the string
+    bool out_of_range;    // The value exceeded the representable range of the target type
 };
 
+/* -------------------------------------------------------------------------- */
+/* Legacy / strtol-like Variants                                              */
+/* -------------------------------------------------------------------------- */
+/* These mirror standard strtol/strtoul signatures. They set `errno` to ERANGE
+ * on overflow and EINVAL for an invalid base.                                */
+
+// Signed Conversions
 int8_t  strtoint8 (const char *str, char **endptr, int base);
 int16_t strtoint16(const char *str, char **endptr, int base);
 int32_t strtoint32(const char *str, char **endptr, int base);
 int64_t strtoint64(const char *str, char **endptr, int base);
+
+// Unsigned Conversions
+uint8_t  strtouint8 (const char *str, char **endptr, int base);
+uint16_t strtouint16(const char *str, char **endptr, int base);
+uint32_t strtouint32(const char *str, char **endptr, int base);
+uint64_t strtouint64(const char *str, char **endptr, int base);
+
+/* -------------------------------------------------------------------------- */
+/* Safe / Structured Variants                                                 */
+/* -------------------------------------------------------------------------- */
+/* These variants do not rely on global `errno`. Instead, they populate the
+ * `strtoint_res_t` structure with parsing metadata and errors.               */
+
+// Signed Conversions
 int8_t  strtoint8_s (const char *str, struct strtoint_res_t *res, int base);
 int16_t strtoint16_s(const char *str, struct strtoint_res_t *res, int base);
 int32_t strtoint32_s(const char *str, struct strtoint_res_t *res, int base);
 int64_t strtoint64_s(const char *str, struct strtoint_res_t *res, int base);
 
-uint8_t  strtouint8 (const char *str, char **endptr, int base);
-uint16_t strtouint16(const char *str, char **endptr, int base);
-uint32_t strtouint32(const char *str, char **endptr, int base);
-uint64_t strtouint64(const char *str, char **endptr, int base);
+// Unsigned Conversions
 uint8_t  strtouint8_s (const char *str, struct strtoint_res_t *res, int base);
 uint16_t strtouint16_s(const char *str, struct strtoint_res_t *res, int base);
 uint32_t strtouint32_s(const char *str, struct strtoint_res_t *res, int base);
