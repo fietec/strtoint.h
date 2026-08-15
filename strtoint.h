@@ -175,7 +175,7 @@ int64_t strtoint_range_s(const char *str, struct strtoint_res_t *res, int base, 
 
     if (!negative){
         if (result < -INT64_MAX){
-            result = INT64_MAX;
+            result = max;
             out_of_range = true;
             goto end;
         }
