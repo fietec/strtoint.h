@@ -1,15 +1,26 @@
-/* strtoint.h - v2.0.0 - Public Domain
+/* strtoint.h - v2.0.1 - Public Domain
  * A family of robust string-to-integer conversion functions for fixed-width types.
+ *
  * Overview:
- *   - The strtoint{8,16,32,64} / strtouint{8,16,32,64} functions provide
- *     strtol / strtoul-compatible conversions for fixed-width integer types.
- *   - The strtoint_range / strtouint_range functions additionally allow
- *     custom minimum and maximum bounds (both inclusive).
- *   - Adds support for binary numbers via the "0b" or "0B" prefix (when base is 0 or 2).
- *   - Standardizes negative inputs for unsigned types across different platforms:
- *     A negative value is converted by subtracting its magnitude from the
- *     maximum bound plus one. Values whose magnitude exceeds the maximum
- *     bound saturate to the maximum bound and report an error.
+ *   - Follows standard strtol / strtoul behavior (skips leading whitespace,
+ *     parses optional sign, and resolves bases 0 or [2, 36], and sets endptr
+ *     to the first unparsed character).
+ *   - If the parsed value falls outside the target type's (or custom) bounds,
+ *     the return value is clamped to the corresponding bound and a range error is reported.
+ *   - Returns 0 on invalid parameters or if no valid digits are found.
+ *
+ * Extensions to strtol / strtoul:
+ *   - Fixed-Width Types: Variants for int8..int64 and uint8..uint64.
+ *   - Custom Range: *_range variants accept custom [min, max] inclusive bounds.
+ *   - Binary Prefix: Supports C23-style "0b" / "0B" prefixes (when base is 0 or 2).
+ *   - Unsigned Negation: Follows the unsigned negation semantics specified for strtoul/strtoull.
+ *     A leading '-' causes the parsed magnitude to be negated in the unsigned domain.
+ *     If the magnitude exceeds the maximum value (UINT8_MAX, UINT16_MAX, etc., or the supplied max),
+ *     the result is clamped to that maximum and a range error is reported.
+ *   - Structured Variants (_s): Replace errno with a result struct for explicit
+ *     parsing metadata and error handling. Exposes parsing flags (leading whitespace,
+ *     negative signs) to allow strict validation of inputs otherwise permissively
+ *     accepted by standard strtol / strtoul.
  */
 
 #ifndef STRTOINT_H
@@ -22,23 +33,10 @@
 extern "C" {
 #endif
 
-// Detailed result metadata for the structured (_s) variants.
-struct strtoint_res_t {
-    const char *endptr;   // Pointer to the first unparsed character
-    bool negative;        // True if the input had a leading '-' sign
-    bool leading_spaces;  // True if the input had leading whitespaces
-
-    // Error Flags
-    bool no_digits;       // No valid digits were found in the string
-    bool out_of_range;    // The value exceeded the representable range of the target type
-    bool invalid_params;  // The supplied parameters were invalid (e.g. base not 0 or 2-36, min > max etc.)
-};
-
 /* -------------------------------------------------------------------------- */
 /* Legacy / strtol-like Variants                                              */
 /* -------------------------------------------------------------------------- */
-/* These provide strtol/strtoul-compatible conversions for fixed-width types.
- * They set `errno` to ERANGE on overflow and EINVAL for invalid parameters.  */
+/* These set `errno` to ERANGE on overflow and EINVAL for invalid parameters. */
 
 // Signed Conversions
 int8_t  strtoint8 (const char *str, char **endptr, int base);
@@ -57,8 +55,22 @@ uint64_t strtouint_range(const char *str, char **endptr, int base, uint64_t min,
 /* -------------------------------------------------------------------------- */
 /* Safe / Structured Variants                                                 */
 /* -------------------------------------------------------------------------- */
-/* These variants do not rely on global `errno`. Instead, they populate the
+/* These variants do not rely on `errno`. Instead, they populate the
  * `strtoint_res_t` structure with parsing metadata and errors.               */
+
+// Detailed result metadata for the structured (_s) variants.
+struct strtoint_res_t {
+    const char *endptr;   // Pointer to the first unparsed character
+
+    // Parsing Flags
+    bool negative;        // Set if a leading '-' sign was parsed (useful for strict unsigned checks)
+    bool leading_spaces;  // Set if leading whitespace was skipped prior to conversion
+
+    // Error Flags
+    bool no_digits;       // No valid digits were found in the string
+    bool out_of_range;    // The value exceeded the representable range of the target type
+    bool invalid_params;  // The supplied parameters were invalid (e.g. base not 0 or 2-36, min > max etc.)
+};
 
 // Signed Conversions
 int8_t  strtoint8_s (const char *str, struct strtoint_res_t *res, int base);
@@ -213,32 +225,32 @@ int64_t strtoint_range(const char *str, char **endptr, int base, int64_t min, in
 
 int8_t strtoint8(const char *str, char **endptr, int base)
 {
-    return strtoint_range(str, endptr, base, INT8_MIN, INT8_MAX);
+    return (int8_t) strtoint_range(str, endptr, base, INT8_MIN, INT8_MAX);
 }
 
 int8_t strtoint8_s(const char *str, struct strtoint_res_t *res, int base)
 {
-    return strtoint_range_s(str, res, base, INT8_MIN, INT8_MAX);
+    return (int8_t) strtoint_range_s(str, res, base, INT8_MIN, INT8_MAX);
 }
 
 int16_t strtoint16(const char *str, char **endptr, int base)
 {
-    return strtoint_range(str, endptr, base,INT16_MIN, INT16_MAX);
+    return (int16_t) strtoint_range(str, endptr, base,INT16_MIN, INT16_MAX);
 }
 
 int16_t strtoint16_s(const char *str, struct strtoint_res_t *res, int base)
 {
-    return strtoint_range_s(str, res, base, INT16_MIN, INT16_MAX);
+    return (int16_t) strtoint_range_s(str, res, base, INT16_MIN, INT16_MAX);
 }
 
 int32_t strtoint32(const char *str, char **endptr, int base)
 {
-    return strtoint_range(str, endptr, base, INT32_MIN, INT32_MAX);
+    return (int32_t) strtoint_range(str, endptr, base, INT32_MIN, INT32_MAX);
 }
 
 int32_t strtoint32_s(const char *str, struct strtoint_res_t *res, int base)
 {
-    return strtoint_range_s(str, res, base, INT32_MIN, INT32_MAX);
+    return (int32_t) strtoint_range_s(str, res, base, INT32_MIN, INT32_MAX);
 }
 
 int64_t strtoint64(const char *str, char **endptr, int base)
@@ -329,32 +341,32 @@ uint64_t strtouint_range(const char *str, char **endptr, int base, uint64_t min,
 
 uint8_t strtouint8(const char *str, char **endptr, int base)
 {
-    return strtouint_range(str, endptr, base, 0, UINT8_MAX);
+    return (uint8_t) strtouint_range(str, endptr, base, 0, UINT8_MAX);
 }
 
 uint8_t strtouint8_s(const char *str, struct strtoint_res_t *res, int base)
 {
-    return strtouint_range_s(str, res, base, 0, UINT8_MAX);
+    return (uint8_t) strtouint_range_s(str, res, base, 0, UINT8_MAX);
 }
 
 uint16_t strtouint16(const char *str, char **endptr, int base)
 {
-    return strtouint_range(str, endptr, base, 0, UINT16_MAX);
+    return (uint16_t) strtouint_range(str, endptr, base, 0, UINT16_MAX);
 }
 
 uint16_t strtouint16_s(const char *str, struct strtoint_res_t *res, int base)
 {
-    return strtouint_range_s(str, res, base, 0, UINT16_MAX);
+    return (uint16_t) strtouint_range_s(str, res, base, 0, UINT16_MAX);
 }
 
 uint32_t strtouint32(const char *str, char **endptr, int base)
 {
-    return strtouint_range(str, endptr, base, 0, UINT32_MAX);
+    return (uint32_t) strtouint_range(str, endptr, base, 0, UINT32_MAX);
 }
 
 uint32_t strtouint32_s(const char *str, struct strtoint_res_t *res, int base)
 {
-    return strtouint_range_s(str, res, base, 0, UINT32_MAX);
+    return (uint32_t) strtouint_range_s(str, res, base, 0, UINT32_MAX);
 }
 
 uint64_t strtouint64(const char *str, char **endptr, int base)
