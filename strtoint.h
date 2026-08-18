@@ -1,4 +1,4 @@
-/* strtoint.h - v2.2.0 - Public Domain - ISO C99
+/* strtoint.h - v2.2.1 - Public Domain - ISO C99
  * A family of robust string-to-integer conversion functions for fixed-width types.
  *
  * Overview:
@@ -11,12 +11,21 @@
  *
  * Extensions to strtol / strtoul:
  *   - Fixed-Width Types: Variants for int8..int64 and uint8..uint64.
- *   - Custom Range: *_range variants accept custom [min, max] inclusive bounds.
  *   - Binary Prefix: Supports C23-style "0b" / "0B" prefixes (when base is 0 or 2).
- *   - Unsigned Negation: Follows the unsigned negation semantics specified for strtoul/strtoull.
- *     A leading '-' causes the parsed magnitude to be negated in the unsigned domain.
- *     If the magnitude exceeds the maximum value (UINT8_MAX, UINT16_MAX, etc., or the supplied max),
- *     the result is clamped to that maximum and a range error is reported.
+ *   - Custom Bounds: Functions with the _range suffix accept inclusive [min, max] bounds,
+ *     treating the interval as a custom integer domain. Input values outside [min, max]
+ *     are clamped to the nearest bound and reported as an out_of_range error.
+ *   - Unsigned Negation: Follows modular unsigned wrap-around semantics relative
+ *      to the target range [min, max] (e.g., 0 to UINT8_MAX or custom bounds):
+ *      - A leading '-' wraps non-zero magnitudes relative to 'max':
+ *          result = max - magnitude + 1
+ *          e.g., for strtouint8("-5"): 255 - 5 + 1 = 251
+ *      - If a wrapped negative result falls below 'min' (magnitude exceeds range capacity),
+ *        the value clamps to 'max' and an out_of_range error is reported.
+ *      - Positive inputs falling outside [min, max] clamp to the nearest boundary
+ *        ('min' or 'max') and set an out_of_range error.
+ *      - A leading '-' always populates res->negative = true, allowing callers in strict
+ *        linear contexts (e.g., port numbers) to reject negative inputs if desired.
  *   - Structured Variants (_s): Replace errno with a result struct for explicit
  *     parsing metadata and error handling. Exposes parsing flags (leading whitespace,
  *     negative signs) to allow strict validation of inputs otherwise permissively
@@ -324,13 +333,18 @@ uint64_t strtouint_range_s(const char *str, strtoint_res_t *res, int base, uint6
         }
         return 0;
     }
+
     if (!out_of_range){
         if (negative && result > 0) {
-            result = max - result + 1;
-        }
-        if (result < min){
-            out_of_range = true;
+            if (max - result + 1 < min){
+                result = max;
+                out_of_range = true;
+            } else{
+                result = max - result + 1;
+            }
+        } else if (result < min){
             result = min;
+            out_of_range = true;
         }
     }
 
