@@ -7,9 +7,9 @@ A simple stb-style single-header library for parsing strings into fixed-width in
 - **Fixed-Width Types:** Dedicated functions for 8, 16, 32, and 64-bit signed and unsigned integer types.
 - **`strtol` / `strtoul` Semantics:** Skips leading whitespace, accepts an optional sign, supports bases 0 and 2-36, and reports the first unparsed character through `endptr`.
 - **Range Checking:** Values outside the target type's range are clamped to the corresponding bound and reported as a range error instead of wrapping around.
-- **Custom Ranges:** `*_range` variants support arbitrary inclusive `[min, max]` bounds.
+- **Custom Ranges:** `*_custom` variants support arbitrary inclusive `[min, max]` bounds.
 - **Binary Prefix:** Supports C23-style `0b` / `0B` prefixes when the base is 0 or 2, in addition to the usual hexadecimal and octal prefixes.
-- **Unsigned Negation:** Follows the unsigned negation semantics specified for `strtoul` / `strtoull`. A leading `-` converts the parsed magnitude using unsigned negation; `*_range` variants apply the same semantics using the supplied maximum as the range limit.
+- **Unsigned Negation:** Follows the unsigned negation semantics specified for `strtoul` / `strtoull`. A leading `-` converts the parsed magnitude using unsigned negation; `*_custom` variants apply the same semantics using the supplied maximum as the range limit.
 - **Structured Results:** `_s` variants report parsing metadata and errors through a result struct instead of relying on `errno`. This includes flags for leading whitespace and negative signs, allowing callers to impose stricter validation when needed.
 - **Single Header:** No external dependencies; the library uses only standard C headers.
 
