@@ -1,5 +1,5 @@
-/* strtoint.h - v2.2.1 - Public Domain - ISO C99
- * A family of robust string-to-integer conversion functions for fixed-width types.
+/* strtoint.h - v3.0.0 - Public Domain - ISO C99
+ * A family of string-to-integer conversion functions for fixed-width types.
  *
  * Overview:
  *   - Follows standard strtol / strtoul behavior (skips leading whitespace,
@@ -12,7 +12,7 @@
  * Extensions to strtol / strtoul:
  *   - Fixed-Width Types: Variants for int8..int64 and uint8..uint64.
  *   - Binary Prefix: Supports C23-style "0b" / "0B" prefixes (when base is 0 or 2).
- *   - Custom Bounds: Functions with the _range suffix accept inclusive [min, max] bounds,
+ *   - Custom Bounds: Functions with the '_custom' suffix accept inclusive [min, max] bounds,
  *     treating the interval as a custom integer domain. Input values outside [min, max]
  *     are clamped to the nearest bound and reported as an out_of_range error.
  *   - Unsigned Negation: Follows modular unsigned wrap-around semantics relative
@@ -53,14 +53,14 @@ int8_t  strtoint8 (const char *str, char **endptr, int base);
 int16_t strtoint16(const char *str, char **endptr, int base);
 int32_t strtoint32(const char *str, char **endptr, int base);
 int64_t strtoint64(const char *str, char **endptr, int base);
-int64_t strtoint_range(const char *str, char **endptr, int base, int64_t min, int64_t max);
+int64_t strtoint_custom(const char *str, char **endptr, int base, int64_t min, int64_t max);
 
 // Unsigned Conversions
 uint8_t  strtouint8 (const char *str, char **endptr, int base);
 uint16_t strtouint16(const char *str, char **endptr, int base);
 uint32_t strtouint32(const char *str, char **endptr, int base);
 uint64_t strtouint64(const char *str, char **endptr, int base);
-uint64_t strtouint_range(const char *str, char **endptr, int base, uint64_t min, uint64_t max);
+uint64_t strtouint_custom(const char *str, char **endptr, int base, uint64_t min, uint64_t max);
 
 /* -------------------------------------------------------------------------- */
 /* Safe / Structured Variants                                                 */
@@ -87,14 +87,14 @@ int8_t  strtoint8_s (const char *str, strtoint_res_t *res, int base);
 int16_t strtoint16_s(const char *str, strtoint_res_t *res, int base);
 int32_t strtoint32_s(const char *str, strtoint_res_t *res, int base);
 int64_t strtoint64_s(const char *str, strtoint_res_t *res, int base);
-int64_t strtoint_range_s(const char *str, strtoint_res_t *res, int base, int64_t min, int64_t max);
+int64_t strtoint_custom_s(const char *str, strtoint_res_t *res, int base, int64_t min, int64_t max);
 
 // Unsigned Conversions
 uint8_t  strtouint8_s (const char *str, strtoint_res_t *res, int base);
 uint16_t strtouint16_s(const char *str, strtoint_res_t *res, int base);
 uint32_t strtouint32_s(const char *str, strtoint_res_t *res, int base);
 uint64_t strtouint64_s(const char *str, strtoint_res_t *res, int base);
-uint64_t strtouint_range_s(const char *str, strtoint_res_t *res, int base, uint64_t min, uint64_t max);
+uint64_t strtouint_custom_s(const char *str, strtoint_res_t *res, int base, uint64_t min, uint64_t max);
 
 #ifdef __cplusplus
 }
@@ -143,7 +143,7 @@ static inline int strtoint__handle_base(const char **str, int base)
 
 /* Signed Parsing */
 
-int64_t strtoint_range_s(const char *str, strtoint_res_t *res, int base, int64_t min, int64_t max)
+int64_t strtoint_custom_s(const char *str, strtoint_res_t *res, int base, int64_t min, int64_t max)
 {
     if (!str || min > max || base < 0 || base == 1 || base > 36){
         if (res){
@@ -227,10 +227,10 @@ int64_t strtoint_range_s(const char *str, strtoint_res_t *res, int base, int64_t
     return result;
 }
 
-int64_t strtoint_range(const char *str, char **endptr, int base, int64_t min, int64_t max)
+int64_t strtoint_custom(const char *str, char **endptr, int base, int64_t min, int64_t max)
 {
     strtoint_res_t res;
-    int64_t result = strtoint_range_s(str, &res, base, min, max);
+    int64_t result = strtoint_custom_s(str, &res, base, min, max);
     if (res.invalid_params) errno = EINVAL;
     else if (res.out_of_range) errno = ERANGE;
     if (endptr) *endptr = (char*) res.endptr;
@@ -239,47 +239,47 @@ int64_t strtoint_range(const char *str, char **endptr, int base, int64_t min, in
 
 int8_t strtoint8(const char *str, char **endptr, int base)
 {
-    return (int8_t) strtoint_range(str, endptr, base, INT8_MIN, INT8_MAX);
+    return (int8_t) strtoint_custom(str, endptr, base, INT8_MIN, INT8_MAX);
 }
 
 int8_t strtoint8_s(const char *str, strtoint_res_t *res, int base)
 {
-    return (int8_t) strtoint_range_s(str, res, base, INT8_MIN, INT8_MAX);
+    return (int8_t) strtoint_custom_s(str, res, base, INT8_MIN, INT8_MAX);
 }
 
 int16_t strtoint16(const char *str, char **endptr, int base)
 {
-    return (int16_t) strtoint_range(str, endptr, base,INT16_MIN, INT16_MAX);
+    return (int16_t) strtoint_custom(str, endptr, base,INT16_MIN, INT16_MAX);
 }
 
 int16_t strtoint16_s(const char *str, strtoint_res_t *res, int base)
 {
-    return (int16_t) strtoint_range_s(str, res, base, INT16_MIN, INT16_MAX);
+    return (int16_t) strtoint_custom_s(str, res, base, INT16_MIN, INT16_MAX);
 }
 
 int32_t strtoint32(const char *str, char **endptr, int base)
 {
-    return (int32_t) strtoint_range(str, endptr, base, INT32_MIN, INT32_MAX);
+    return (int32_t) strtoint_custom(str, endptr, base, INT32_MIN, INT32_MAX);
 }
 
 int32_t strtoint32_s(const char *str, strtoint_res_t *res, int base)
 {
-    return (int32_t) strtoint_range_s(str, res, base, INT32_MIN, INT32_MAX);
+    return (int32_t) strtoint_custom_s(str, res, base, INT32_MIN, INT32_MAX);
 }
 
 int64_t strtoint64(const char *str, char **endptr, int base)
 {
-    return strtoint_range(str, endptr, base, INT64_MIN, INT64_MAX);
+    return strtoint_custom(str, endptr, base, INT64_MIN, INT64_MAX);
 }
 
 int64_t strtoint64_s(const char *str, strtoint_res_t *res, int base)
 {
-    return strtoint_range_s(str, res, base, INT64_MIN, INT64_MAX);
+    return strtoint_custom_s(str, res, base, INT64_MIN, INT64_MAX);
 }
 
 /* Unsigned Parsing */
 
-uint64_t strtouint_range_s(const char *str, strtoint_res_t *res, int base, uint64_t min, uint64_t max)
+uint64_t strtouint_custom_s(const char *str, strtoint_res_t *res, int base, uint64_t min, uint64_t max)
 {
     if (!str || min > max || base < 0 || base == 1 || base > 36){
         if (res){
@@ -359,10 +359,10 @@ uint64_t strtouint_range_s(const char *str, strtoint_res_t *res, int base, uint6
     return result;
 }
 
-uint64_t strtouint_range(const char *str, char **endptr, int base, uint64_t min, uint64_t max)
+uint64_t strtouint_custom(const char *str, char **endptr, int base, uint64_t min, uint64_t max)
 {
     strtoint_res_t res;
-    uint64_t result = strtouint_range_s(str, &res, base, min, max);
+    uint64_t result = strtouint_custom_s(str, &res, base, min, max);
     if (res.invalid_params) errno = EINVAL;
     else if (res.out_of_range) errno = ERANGE;
     if (endptr) *endptr = (char*) res.endptr;
@@ -371,42 +371,42 @@ uint64_t strtouint_range(const char *str, char **endptr, int base, uint64_t min,
 
 uint8_t strtouint8(const char *str, char **endptr, int base)
 {
-    return (uint8_t) strtouint_range(str, endptr, base, 0, UINT8_MAX);
+    return (uint8_t) strtouint_custom(str, endptr, base, 0, UINT8_MAX);
 }
 
 uint8_t strtouint8_s(const char *str, strtoint_res_t *res, int base)
 {
-    return (uint8_t) strtouint_range_s(str, res, base, 0, UINT8_MAX);
+    return (uint8_t) strtouint_custom_s(str, res, base, 0, UINT8_MAX);
 }
 
 uint16_t strtouint16(const char *str, char **endptr, int base)
 {
-    return (uint16_t) strtouint_range(str, endptr, base, 0, UINT16_MAX);
+    return (uint16_t) strtouint_custom(str, endptr, base, 0, UINT16_MAX);
 }
 
 uint16_t strtouint16_s(const char *str, strtoint_res_t *res, int base)
 {
-    return (uint16_t) strtouint_range_s(str, res, base, 0, UINT16_MAX);
+    return (uint16_t) strtouint_custom_s(str, res, base, 0, UINT16_MAX);
 }
 
 uint32_t strtouint32(const char *str, char **endptr, int base)
 {
-    return (uint32_t) strtouint_range(str, endptr, base, 0, UINT32_MAX);
+    return (uint32_t) strtouint_custom(str, endptr, base, 0, UINT32_MAX);
 }
 
 uint32_t strtouint32_s(const char *str, strtoint_res_t *res, int base)
 {
-    return (uint32_t) strtouint_range_s(str, res, base, 0, UINT32_MAX);
+    return (uint32_t) strtouint_custom_s(str, res, base, 0, UINT32_MAX);
 }
 
 uint64_t strtouint64(const char *str, char **endptr, int base)
 {
-    return strtouint_range(str, endptr, base, 0, UINT64_MAX);
+    return strtouint_custom(str, endptr, base, 0, UINT64_MAX);
 }
 
 uint64_t strtouint64_s(const char *str, strtoint_res_t *res, int base)
 {
-    return strtouint_range_s(str, res, base, 0, UINT64_MAX);
+    return strtouint_custom_s(str, res, base, 0, UINT64_MAX);
 }
 
 #endif // STRTOINT_IMPLEMENTATION
