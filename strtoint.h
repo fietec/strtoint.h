@@ -29,19 +29,18 @@
  *
  * Custom Bounds:
  *   Functions with the '_custom' suffix accept inclusive [min, max] bounds,
- *   treating the interval as a custom integer domain. Input values outside [min, max]
- *   are clamped to the nearest bound and reported as an out_of_range error.
+ *   treating the interval as a custom integer domain.
  *   You can set these bounds to any arbitrary values which means:
  *    - For signed conversions or positive unsigned conversions (meaning without a leading '-')
  *      inputs outside of [min, max] clamp to the nearest boundary and set an 'out_of_range' error.
  *    - For negative unsigned conversions additionally, the following rule holds:
  *      If the already wrapped result (see above) falls below 'min', 'max' is returned and an 'out_of_range' error set.
- *    e.g. for min = 10, max = 20:
- *      " 5"  -> 10 + 'out_of_range' error
- *      "30"  -> 20 + 'out_of_range' error
- *      " -1" -> 20
- *      "-11" -> 10
- *      "-12" -> 20 + 'out_of_range' error
+ *        e.g. for min = 10, max = 20:
+ *        " 5"  -> 10 + 'out_of_range' error
+ *        "30"  -> 20 + 'out_of_range' error
+ *        " -1" -> 20
+ *        "-11" -> 10
+ *        "-12" -> 20 + 'out_of_range' error
  *   For bounds set to usual integer min and max values this leads to strtol / strtoul compliant behavior.
  *   In fact, all of the fixed-integer conversion functions in this library are simple wrappers around the '_custom' functions.
  *   This also means you can create a strtol drop-in-replacement by setting min = LONG_MIN and max = LONG_MAX.

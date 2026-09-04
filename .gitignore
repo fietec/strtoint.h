@@ -2,3 +2,6 @@
 !LICENSE
 !README.md
 !strtoint.h
+!tests
+!tests/tests.c
+!tests/Makefile
