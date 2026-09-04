@@ -12,24 +12,39 @@
  * Extensions to strtol / strtoul:
  *   - Fixed-Width Types: Variants for int8..int64 and uint8..uint64.
  *   - Binary Prefix: Supports C23-style "0b" / "0B" prefixes (when base is 0 or 2).
- *   - Custom Bounds: Functions with the '_custom' suffix accept inclusive [min, max] bounds,
- *     treating the interval as a custom integer domain. Input values outside [min, max]
- *     are clamped to the nearest bound and reported as an out_of_range error.
- *   - Unsigned Negation: Follows modular unsigned wrap-around semantics relative
- *      to the target range [min, max] (e.g., 0 to UINT8_MAX or custom bounds):
- *      - A leading '-' wraps non-zero magnitudes relative to 'max':
- *          result = max - magnitude + 1
- *          e.g., for strtouint8("-5"): 255 - 5 + 1 = 251
- *      - If a wrapped negative result falls below 'min' (magnitude exceeds range capacity),
- *        the value clamps to 'max' and an out_of_range error is reported.
- *      - Positive inputs falling outside [min, max] clamp to the nearest boundary
- *        ('min' or 'max') and set an out_of_range error.
- *      - A leading '-' always populates res->negative = true, allowing callers in strict
- *        linear contexts (e.g., port numbers) to reject negative inputs if desired.
  *   - Structured Variants (_s): Replace errno with a result struct for explicit
  *     parsing metadata and error handling. Exposes parsing flags (leading whitespace,
  *     negative signs) to allow strict validation of inputs otherwise permissively
  *     accepted by standard strtol / strtoul.
+ *   - Unsigned Negation: Follows strtoul's two's-complement wrap-around behavior. This means:
+ *      - A leading '-' wraps non-zero magnitudes relative to 'max' (the type's maximum value):
+ *          result = max - magnitude + 1
+ *          e.g., for strtouint8("-5"): 255 - 5 + 1 = 251
+ *      - A magnitude greater than 'max' will result in the max being returned and an 'out_of_range' error set:
+ *          e.g. for strtouint8("-256") = 255
+ *        This matches the specified behavior of strtoul, but since not all implementations are consistent
+ *        in this regard it is clearly specified here.
+ *      - In the '_s' variants a leading '-' always populates res->negative = true, allowing callers in strict
+ *        linear contexts (e.g., port numbers) to reject negative inputs if desired.
+ *
+ * Custom Bounds:
+ *   Functions with the '_custom' suffix accept inclusive [min, max] bounds,
+ *   treating the interval as a custom integer domain. Input values outside [min, max]
+ *   are clamped to the nearest bound and reported as an out_of_range error.
+ *   You can set these bounds to any arbitrary values which means:
+ *    - For signed conversions or positive unsigned conversions (meaning without a leading '-')
+ *      inputs outside of [min, max] clamp to the nearest boundary and set an 'out_of_range' error.
+ *    - For negative unsigned conversions additionally, the following rule holds:
+ *      If the already wrapped result (see above) falls below 'min', 'max' is returned and an 'out_of_range' error set.
+ *    e.g. for min = 10, max = 20:
+ *      " 5"  -> 10 + 'out_of_range' error
+ *      "30"  -> 20 + 'out_of_range' error
+ *      " -1" -> 20
+ *      "-11" -> 10
+ *      "-12" -> 20 + 'out_of_range' error
+ *   For bounds set to usual integer min and max values this leads to strtol / strtoul compliant behavior.
+ *   In fact, all of the fixed-integer conversion functions in this library are simple wrappers around the '_custom' functions.
+ *   This also means you can create a strtol drop-in-replacement by setting min = LONG_MIN and max = LONG_MAX.
  */
 
 #ifndef STRTOINT_H
